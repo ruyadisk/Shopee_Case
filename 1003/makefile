@@ -7,7 +7,8 @@ my_program: main.cpp
 	$(CXX) $(CXXFLAGS) -o my_program main.cpp
 
 run: my_program
-	./my_program example_1.txt
+	./my_program example_5.txt
+
 
 clean:
 	rm -f my_program

@@ -5,6 +5,8 @@
 #include <vector>
 #include <math.h>
 #include <iomanip>
+#include <time.h>
+
 
 using namespace std;
 
@@ -30,7 +32,9 @@ void perform(stack<double> &number_stack, stack<char> &operator_stack) {
     if (op == '+') result = first + second;
     else if (op == '-') result = first - second;
     else if (op == '*') result = first * second;
-    else if (op == '/') result = first / second;
+    else if (op == '/') {
+        result = first / second;
+    }
     else if (op == '^') result = pow(first, second);
     number_stack.push(result);
     return;
@@ -46,9 +50,9 @@ double analyze(const string &exp) {
         if(exp_[i] == ' '){
             continue;
         }
-        else if (exp_[i] == '(' || exp_[i] == '[' || exp_[i] == '{') {
+        else if (exp_[i] == '(') {
             operator_stack.push('(');
-        } else if (exp_[i] == ')' || exp_[i] == ']' || exp_[i] == '}') {
+        } else if (exp_[i] == ')') {
             while (operator_stack.top() != '(')
                 perform(number_stack, operator_stack);
             operator_stack.pop();
@@ -60,11 +64,20 @@ double analyze(const string &exp) {
             ifnext = false;
         } else {
             int j = i;
-            if (exp_[j] == '+' || exp_[j] == '-' || exp_[j] == '*' || exp_[j] == '/' || exp_[j] == '^') ++i;
-            while (digits.find(exp_[i]) != digits.npos) ++i;
+            if (exp_[j] == '+' || exp_[j] == '-'){
+                if(exp_[j+1] < '0' || exp_[j+1] > '9'){
+                    number_stack.push(-1);
+                    operator_stack.push('*');
+                    ifnext = false;
+                }
+                else{
+                    ++i;
+                }
+            } ++i;
+            while (exp_[i] >= '0' && exp_[i] <= '9') ++i;
             number_stack.push((double)stoi(exp_.substr(j, i - j)));
-            --i;
             ifnext = true;
+            --i;
         }
     }
     return number_stack.top();
@@ -83,7 +96,7 @@ vector<double> vec_calculate(vector<vector<double>> table, string vec_postfix){
             s.push(stod(vec_postfix.substr(pos, cnt - pos)));
             --cnt;
         }
-        else if(vec_postfix[cnt] == '+' || vec_postfix[cnt] == '-' || vec_postfix[cnt] == '*' || vec_postfix[cnt] == '/' || vec_postfix[cnt] == '^'){
+        else if(vec_postfix[cnt] == '+' || vec_postfix[cnt] == '-' || vec_postfix[cnt] == '*' || vec_postfix[cnt] == '/'){
             vector<double>& first = table[s.top()];
             s.pop();
             vector<double>& second = table[s.top()];
@@ -126,12 +139,8 @@ vector<double> vec_calculate(vector<vector<double>> table, string vec_postfix){
                     second[vec_cnt] /= first[vec_cnt];
                 }
                 break;
-                case '^':
-                for(int vec_cnt = 0; vec_cnt < second.size(); vec_cnt++){
-                    second[vec_cnt] = pow(second[vec_cnt],first[vec_cnt]);
-                }
-                break;
             }
+            first.clear();
             s.push(flg);
         }
         else{
@@ -146,65 +155,86 @@ int main(int argc, char* argv[]){
     ifstream fin;
     fin.open(argv[1]);
     
-    vector<string>line_table;
     string buf;
     while(getline(fin, buf)){    
-        line_table.push_back(buf);
-    }
-    
-    for(auto &it : line_table){
         vector<vector<double>>table;
         stack<char> vec_proc;
         string vec_postfix;
         int vec_cnt = 0;
-        for(int cnt = 0; cnt < it.size(); cnt++){
+        for(int cnt = 0; cnt < buf.size(); cnt++){
             vector<double>element;
-            if(it[cnt] == '['){
+            if(buf[cnt] == '['){
                 cnt++;
                 string res = "";
-                while(it[cnt] != ']'){
-                    if(it[cnt] == ','){
+                while(buf[cnt] != ']'){
+                    if(buf[cnt] == ','){
                         double tmp = analyze(res);
                         element.push_back(tmp);
                         res = "";
                         cnt++;
                     }
-                    else if(it[cnt] == ' '){
+                    else if(buf[cnt] == ' '){
                         cnt++;
                     }
                     else{
-                        res += it[cnt];
+                        res += buf[cnt];
                         cnt++;
                     }
                 }
                 element.push_back(analyze(res));
                 vec_postfix += to_string(vec_cnt);
-                vec_postfix += " ";
                 table.push_back(element);
                 vec_postfix += vec_cnt;
-                vec_postfix += " ";
                 vec_cnt++;
             }
-            else if(it[cnt] == ' ' || (int)it[cnt] == 13){
+            else if(buf[cnt] == ' ' || (int)buf[cnt] == 13){
                 continue;
             }
             else{
-                while(!vec_proc.empty() && priority(vec_proc.top(), it[cnt])){
+                while(!vec_proc.empty() && priority(vec_proc.top(), buf[cnt])){
                     vec_postfix += vec_proc.top();
-                    vec_postfix += " ";
                     vec_proc.pop();
                 }
-                vec_proc.push(it[cnt]);
+                vec_proc.push(buf[cnt]);
             }
+            element.clear();
         }
         while(!vec_proc.empty()){
             vec_postfix += vec_proc.top();
             vec_proc.pop();
         }
-        for(auto &it : vec_calculate(table, vec_postfix)){
-            cout << fixed << setprecision(2) << it << " ";
+        cout << "[";
+        vector<double>result = vec_calculate(table, vec_postfix);
+        for(int res_cnt = 0; res_cnt < result.size(); res_cnt++){
+            result[res_cnt] = round(result[res_cnt] * 100) / 100.0;
+            if(res_cnt != result.size() - 1){
+                if(result[res_cnt] == trunc(result[res_cnt])){
+                    cout << (int)result[res_cnt] << ",";
+                }
+                else if(result[res_cnt] * 10 == trunc(result[res_cnt] * 10)){
+                    cout << fixed << setprecision(1) << result[res_cnt] << ",";
+                }
+                else{
+                    cout << fixed << setprecision(2) << result[res_cnt] << ",";
+                }
+            }
+            else{
+                if(result[res_cnt] == trunc(result[res_cnt])){
+                    cout << (int)result[res_cnt];
+                }
+                else if(result[res_cnt] * 10 == trunc(result[res_cnt] * 10)){
+                    cout << fixed << setprecision(1) << result[res_cnt];
+                }
+                else{
+                    cout << fixed << setprecision(2) << result[res_cnt];
+                }
+            }
         }
-        cout << endl;
-    
+        cout << "]" << endl;
+        result.clear();
+        table.clear();
+        vec_postfix.clear();
     }
+    fin.close();
+    return 0;
 }
