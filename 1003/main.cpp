@@ -5,7 +5,6 @@
 #include <vector>
 #include <math.h>
 #include <iomanip>
-#include <time.h>
 
 
 using namespace std;
@@ -15,22 +14,26 @@ string digits = "0123456789";
 bool priority(char top, char now) {
     if (top == '(') {
         return false;
-    } else if ((top == '-' || top == '+' || top == '^') && (now == '*' || now == '/')) {
+    } else if ((top == '-' || top == '+') && (now == '*' || now == '/')) {
+        return false;
+    } else if ((top == '-' || top == '+' || top == '*' || top == '/') && now == '^'){
         return false;
     }
     return true;
 }
 
-void perform(stack<double> &number_stack, stack<char> &operator_stack) {
+void perform(stack< double> &number_stack, stack<char> &operator_stack) {
     double second = number_stack.top();
     number_stack.pop();
     double first = number_stack.top();
     number_stack.pop();
     char op = operator_stack.top();
     operator_stack.pop();
-    double result;
+     double result;
     if (op == '+') result = first + second;
-    else if (op == '-') result = first - second;
+    else if (op == '-') {
+        result = first - second;
+    }
     else if (op == '*') result = first * second;
     else if (op == '/') {
         result = first / second;
@@ -40,10 +43,12 @@ void perform(stack<double> &number_stack, stack<char> &operator_stack) {
     return;
 }
 
-double analyze(const string &exp) {
-    stack<double> number_stack;
+ double analyze(const string &exp) {
+    
+    stack< double> number_stack;
     stack<char> operator_stack;
     operator_stack.push('(');
+    stack<char>sss = operator_stack;
     string exp_ = exp + ')';
     bool ifnext = false;
     for (int i = 0; i < exp_.size(); ++i) {
@@ -53,8 +58,9 @@ double analyze(const string &exp) {
         else if (exp_[i] == '(') {
             operator_stack.push('(');
         } else if (exp_[i] == ')') {
-            while (operator_stack.top() != '(')
-                perform(number_stack, operator_stack);
+            while (operator_stack.top() != '('){
+                perform(number_stack, operator_stack);                
+            }
             operator_stack.pop();
         } else if (ifnext) {
             while (priority(operator_stack.top(), exp_[i])) {
@@ -64,7 +70,7 @@ double analyze(const string &exp) {
             ifnext = false;
         } else {
             int j = i;
-            if (exp_[j] == '+' || exp_[j] == '-'){
+            if (exp_[j] == '-'){
                 if(exp_[j+1] < '0' || exp_[j+1] > '9'){
                     number_stack.push(-1);
                     operator_stack.push('*');
@@ -72,34 +78,40 @@ double analyze(const string &exp) {
                 }
                 else{
                     ++i;
+                    while (i+1 != exp_.size() && exp_[i] >= '0' && exp_[i] <= '9') ++i;
+                    number_stack.push(( double)stoi(exp_.substr(j, i - j)));
+                    ifnext = true;
+                    --i;
                 }
-            } ++i;
-            while (exp_[i] >= '0' && exp_[i] <= '9') ++i;
-            number_stack.push((double)stoi(exp_.substr(j, i - j)));
-            ifnext = true;
-            --i;
+            }
+            else{
+                ++i;
+                while (exp_[i] >= '0' && exp_[i] <= '9') ++i;
+                number_stack.push((double)stoi(exp_.substr(j, i - j)));
+                ifnext = true;
+                --i;
+            }
         }
     }
     return number_stack.top();
 }
 
-vector<double> vec_calculate(vector<vector<double>> table, string vec_postfix){
-    int pos = 0;
+vector< double> vec_calculate(vector<vector< double>> table, string vec_postfix){
     stack<int> s;
     for(int cnt = 0; cnt < vec_postfix.size(); cnt++){
         int tmp = 0;
         if(digits.find(vec_postfix[cnt]) != digits.npos){
-            pos = cnt;
-            while(digits.find(vec_postfix[cnt]) != digits.npos){
+            int pos = cnt;
+            while(vec_postfix[cnt] >= '0' && vec_postfix[cnt] <= '9'){
                 ++cnt;
             }
-            s.push(stod(vec_postfix.substr(pos, cnt - pos)));
+            s.push(stoi(vec_postfix.substr(pos, cnt - pos)));
             --cnt;
         }
         else if(vec_postfix[cnt] == '+' || vec_postfix[cnt] == '-' || vec_postfix[cnt] == '*' || vec_postfix[cnt] == '/'){
-            vector<double>& first = table[s.top()];
+            vector< double>& first = table[s.top()];
             s.pop();
-            vector<double>& second = table[s.top()];
+            vector< double>& second = table[s.top()];
             int flg = s.top();
             s.pop();
             int size_first = first.size();
@@ -156,10 +168,10 @@ int main(int argc, char* argv[]){
     fin.open(argv[1]);
     
     string buf;
-    while(getline(fin, buf)){    
+    while(getline(fin, buf)){   
         vector<vector<double>>table;
         stack<char> vec_proc;
-        string vec_postfix;
+        string vec_postfix = "";
         int vec_cnt = 0;
         for(int cnt = 0; cnt < buf.size(); cnt++){
             vector<double>element;
@@ -183,26 +195,30 @@ int main(int argc, char* argv[]){
                 }
                 element.push_back(analyze(res));
                 vec_postfix += to_string(vec_cnt);
+                vec_postfix += " ";
                 table.push_back(element);
-                vec_postfix += vec_cnt;
                 vec_cnt++;
             }
-            else if(buf[cnt] == ' ' || (int)buf[cnt] == 13){
+            else if(buf[cnt] == ' '){
                 continue;
             }
             else{
                 while(!vec_proc.empty() && priority(vec_proc.top(), buf[cnt])){
                     vec_postfix += vec_proc.top();
+                    vec_postfix += " ";
                     vec_proc.pop();
                 }
                 vec_proc.push(buf[cnt]);
             }
             element.clear();
         }
+
         while(!vec_proc.empty()){
             vec_postfix += vec_proc.top();
+            vec_postfix += " ";
             vec_proc.pop();
         }
+
         cout << "[";
         vector<double>result = vec_calculate(table, vec_postfix);
         for(int res_cnt = 0; res_cnt < result.size(); res_cnt++){
